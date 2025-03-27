@@ -1,7 +1,7 @@
 package com.cobistopaz.custom.invoice.updater.entities;
 
 import java.io.Serializable;
-import java.sql.Date;
+import java.sql.Timestamp;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -25,7 +25,7 @@ public class FeRespuestaEntity implements Serializable{
 	private String modo;
 	
 	@Column (name = "re_fecha")
-	private Date fecha;
+	private Timestamp fecha;
 	
 	@Column (name = "re_pto_fac")
 	private String ptoFac;
@@ -52,11 +52,11 @@ public class FeRespuestaEntity implements Serializable{
 		this.modo = modo;
 	}
 
-	public Date getFecha() {
+	public Timestamp getFecha() {
 		return fecha;
 	}
 
-	public void setFecha(Date fecha) {
+	public void setFecha(Timestamp fecha) {
 		this.fecha = fecha;
 	}
 

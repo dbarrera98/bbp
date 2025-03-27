@@ -18,6 +18,8 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Configuration
 public class FacturasProcessorConfig {
@@ -36,6 +38,8 @@ public class FacturasProcessorConfig {
     @Value("${facturas.processor.delay:3}")
     private int delay;
 
+    private final ConcurrentMap<String, Boolean> processedMap = new ConcurrentHashMap<>();
+
     public FacturasProcessorConfig(FeFacturaService feFacturaService, FeRespuestaService feRespuestaService) {
         this.feFacturaService = feFacturaService;
         this.feRespuestaService = feRespuestaService;
@@ -44,6 +48,14 @@ public class FacturasProcessorConfig {
     @Bean
     public Function<FeRespuestaDto, FeRespuestaDto> validarFactura() {
         return feRespuestaDto -> {
+            String key = feRespuestaDto.getPtoFac() + "-" + feRespuestaDto.getSeqNos() + "-" + feRespuestaDto.getModo();
+
+            if (processedMap.containsKey(key)) {
+                logger.info("Factura ya procesada: ptoFac={}, seqNos={}, modo={}. Se descarta el registro.",
+                        feRespuestaDto.getPtoFac(), feRespuestaDto.getSeqNos(), feRespuestaDto.getModo());
+                return null;
+            }
+
             logger.info("Recibido -> ptoFac={}, seqNos={}, tipo={}, cufe={}, modo={}, fecha={}",
                     feRespuestaDto.getPtoFac(), feRespuestaDto.getSeqNos(), feRespuestaDto.getTipo(),
                     feRespuestaDto.getCufe(), feRespuestaDto.getModo(), feRespuestaDto.getFecha());
@@ -57,12 +69,14 @@ public class FacturasProcessorConfig {
             if (feRespuestaService.isFacturaDuplicada(feRespuestaDto.getPtoFac(), feRespuestaDto.getSeqNos(), feRespuestaDto.getModo())) {
                 logger.info("Factura duplicada detectada: ptoFac={}, seqNos={}, modo={}. Se descarta el registro.",
                         feRespuestaDto.getPtoFac(), feRespuestaDto.getSeqNos(), feRespuestaDto.getModo());
+                processedMap.put(key, true);
                 return null;
             }
 
             if (feFacturaService.isArchivoProcesado(feRespuestaDto.getPtoFac(), feRespuestaDto.getSeqNos())) {
                 logger.info("El archivo ya ha sido procesado: ptoFac={}, seqNos={}. Se descarta el registro.",
                         feRespuestaDto.getPtoFac(), feRespuestaDto.getSeqNos());
+                processedMap.put(key, true);
                 return null;
             }
 
@@ -72,6 +86,7 @@ public class FacturasProcessorConfig {
                 logger.error("Error al procesar la factura: ", e);
             }
 
+            processedMap.put(key, true);
             return feRespuestaDto;
         };
     }
